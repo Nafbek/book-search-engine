@@ -1,24 +1,25 @@
 const { AuthenticationError } = require("apollo-server-express");
 const { User, Book } = require("../models");
 const { signToken } = require("../utils/auth");
+const { searchGoogleBooks } = require("../../client/src/utils/API");
 
 const resolvers = {
   Query: {
     users: async () => {
-      return User.find().populate("Book");
+      return User.find().populate("books");
     },
-    user: async () => {
-      return User.findById(_id).populate("Book");
+    user: async (_, { username }) => {
+      return User.findOne({ username }).populate("books");
     },
-    books: async (_, args) => {
-      return Book.findOne(args);
+    books: async () => {
+      return Book.findOne();
     },
     book: async (_, { bookId }) => {
       return Book.findById({ _id: bookId });
     },
     me: async (_, args, context) => {
       if (context.user) {
-        return User.findOne({ _id: context.user._id }).populate("Book");
+        return User.findOne({ _id: context.user._id }).populate("books");
       }
     },
   },
@@ -35,7 +36,7 @@ const resolvers = {
         throw new AuthenticationError("No user found with that email address");
       }
 
-      const correctPassword = await user.isCorrectPassword(password);
+      const correctPassword = await user.isCorrectPassword(args.password);
 
       if (!correctPassword) {
         throw new AuthenticationError(
@@ -55,21 +56,30 @@ const resolvers = {
           {
             _id: context.user._id,
           },
-          { $addToSet: { books: book} }
+          { $addToSet: { books: book } }
         );
         return user;
       }
       throw new AuthenticationError("You need to login!");
     },
 
+    searchBooks: async (_, { query }) => {
+      try {
+        const response = await searchGoogleBooks(query);
+        return response.items;
+      } catch (error) {
+        console.log("Error searching for books: ", error);
+      }
+    },
+
     removeBook: async (_, { bookId }, context) => {
       if (context.user) {
-        const book = await Book.findOneAndDelete({ bookId }).populate("user");
+        await Book.findOneAndDelete({ _id: bookId }).populate("user");
         await User.findOneAndUpdate(
           { _id: context.user._id },
-          { $pull: { books: book.bookId } },
+          { $pull: { books: bookId } },
           { new: true }
-        );
+        ).populate("books");
       }
       throw new AuthenticationError("You need to login!");
     },

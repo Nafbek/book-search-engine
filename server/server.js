@@ -32,7 +32,7 @@ const startApolloServer = async (typeDefs, resolvers) => {
     app.listen(PORT, () => {
       console.log(`🌍 Now listening on localhost:${PORT}`);
       console.log(
-        `🌍 Use GraphQL at http://localhost:${PORT}${server.graphqlpath}`
+        `🌍 Use GraphQL at http://localhost:${PORT}${server.graphqlPath}`
       );
     });
   });
